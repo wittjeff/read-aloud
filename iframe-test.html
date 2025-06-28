@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Read-Aloud Iframe Test</title>
+</head>
+<body>
+    <h1>Main Page Content</h1>
+    <p>This is the main page content that should be read by Read-Aloud.</p>
+    
+    <h2>Same-Origin Iframe Test</h2>
+    <iframe id="test-iframe" width="400" height="300" style="border: 1px solid #ccc;">
+    </iframe>
+    
+    <h2>About:blank Iframe Test</h2>
+    <iframe id="blank-iframe" width="400" height="300" style="border: 1px solid #ccc;" src="about:blank">
+    </iframe>
+    
+    <script>
+        // Create content for the test iframe
+        const iframe = document.getElementById('test-iframe');
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>Iframe Content</title></head>
+            <body>
+                <h3>Iframe Content</h3>
+                <p>This text is inside an iframe and should be included when Read-Aloud processes the page.</p>
+                <p>This is a second paragraph in the iframe to test multiple text blocks.</p>
+                <ul>
+                    <li>List item 1 in iframe</li>
+                    <li>List item 2 in iframe</li>
+                </ul>
+            </body>
+            </html>
+        `);
+        iframeDoc.close();
+        
+        // Create content for the about:blank iframe
+        const blankIframe = document.getElementById('blank-iframe');
+        const blankDoc = blankIframe.contentDocument || blankIframe.contentWindow.document;
+        blankDoc.open();
+        blankDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>About:blank Content</title></head>
+            <body>
+                <h3>About:blank Iframe Content</h3>
+                <p>This text is inside an about:blank iframe.</p>
+                <p>If iframe support is working, this text should also be read.</p>
+            </body>
+            </html>
+        `);
+        blankDoc.close();
+    </script>
+</body>
+</html>

@@ -122,6 +122,28 @@ function errorToJson(err) {
   }
 }
 
+// Frame-to-frame messaging utilities
+function FrameMessagingPeer(targetWindow, targetOrigin) {
+  var self = this;
+  var messageHandlers = new Map();
+  
+  this.send = function(msg) {
+    targetWindow.postMessage(msg, targetOrigin || '*');
+  }
+  
+  this.disconnect = function() {
+    window.removeEventListener('message', messageHandler);
+  }
+  
+  function messageHandler(event) {
+    if (event.source === targetWindow && event.data) {
+      if (self.onReceive) self.onReceive(event.data);
+    }
+  }
+  
+  window.addEventListener('message', messageHandler);
+}
+
 
 
 function makeDispatcher(myAddress, handlers) {

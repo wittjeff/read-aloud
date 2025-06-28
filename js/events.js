@@ -376,6 +376,7 @@ async function contentScriptAlreadyInjected(tab, frameId) {
     target: {
       tabId: tab.id,
       frameIds: frameId ? [frameId] : undefined,
+      allFrames: frameId === undefined, // Only inject all frames if no specific frameId
     },
     func: function() {
       return typeof brapi != "undefined"
@@ -389,6 +390,7 @@ async function injectContentScript(tab, frameId, extraScripts) {
     target: {
       tabId: tab.id,
       frameIds: frameId ? [frameId] : undefined,
+      allFrames: frameId === undefined, // Only inject all frames if no specific frameId
     },
     files: [
       "js/rxjs.umd.min.js",
@@ -403,6 +405,7 @@ async function injectContentScript(tab, frameId, extraScripts) {
     target: {
       tabId: tab.id,
       frameIds: frameId ? [frameId] : undefined,
+      allFrames: frameId === undefined, // Only inject all frames if no specific frameId
     },
     files: files
   })
