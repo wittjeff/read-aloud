@@ -71,9 +71,140 @@ var readAloudDoc = new function() {
     }
     $(toRead).addClass("read-aloud");   //for debugging only
 
-    //extract texts
-    return toRead.flatMap(getTexts).filter(isNotEmpty);
+    //extract texts with iframe integration
+    return extractTextsWithIframes(toRead);
   }
+
+  function extractTextsWithIframes(toRead) {
+    // First get the normal text extraction
+    var normalTexts = toRead.flatMap(getTexts).filter(isNotEmpty);
+    
+    // Then apply document-order iframe integration
+    return buildDocumentOrderTexts(normalTexts);
+  }
+  
+  function buildDocumentOrderTexts(normalTexts) {
+    var result = [];
+    var iframeTextMap = new Map();
+    
+    // First, extract iframe content and map it to iframe elements
+    var iframes = document.querySelectorAll('iframe');
+    console.log("Read-Aloud: Found", iframes.length, "iframes for document order integration");
+    
+    for (var i = 0; i < iframes.length; i++) {
+      var iframe = iframes[i];
+      var iframeTexts = getIframeTextsFromElement(iframe);
+      if (iframeTexts && iframeTexts.length > 0) {
+        iframeTextMap.set(iframe, iframeTexts);
+        console.log("Read-Aloud: Mapped", iframeTexts.length, "texts to iframe", i);
+      }
+    }
+    
+    if (iframeTextMap.size === 0) {
+      console.log("Read-Aloud: No iframe content found, using normal texts");
+      return normalTexts;
+    }
+    
+    // Traverse all top-level elements in document order
+    var topLevelElements = Array.from(document.body?.children || document.documentElement?.children || []);
+    
+    for (var i = 0; i < topLevelElements.length; i++) {
+      var element = topLevelElements[i];
+      
+      if (element.tagName === 'IFRAME') {
+        // Insert iframe content
+        var iframeTexts = iframeTextMap.get(element);
+        if (iframeTexts && iframeTexts.length > 0) {
+          console.log("Read-Aloud: Inserting iframe content in document order");
+          result.push(""); // Separator
+          result = result.concat(iframeTexts);
+        }
+      } else {
+        // Get text from this element (excluding iframes)
+        var elementTexts = getTextFromElement(element);
+        if (elementTexts && elementTexts.length > 0) {
+          result = result.concat(elementTexts);
+        }
+      }
+    }
+    
+    console.log("Read-Aloud: Document order result:", result.length, "text blocks");
+    console.log("Read-Aloud: DOCUMENT ORDER TEXTS:", result);
+    
+    return result.filter(isNotEmpty);
+  }
+  
+  function getTextFromElement(element) {
+    // Extract text from an element, excluding iframe content
+    var texts = [];
+    var ignoreTags = "select, textarea, button, label, audio, video, dialog, embed, menu, nav, noframes, noscript, object, script, style, svg, aside, footer, #footer, .no-read-aloud, [aria-hidden=true], iframe";
+    
+    // Skip if this element should be ignored
+    if (element.matches && element.matches(ignoreTags)) {
+      return texts;
+    }
+    
+    // Get text content, but exclude iframe elements
+    var walker = element.ownerDocument.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          var parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          
+          // Skip ignored elements including iframes
+          if (parent.closest(ignoreTags)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          // Only accept nodes with meaningful text
+          var text = node.textContent.trim();
+          if (text.length < 3) return NodeFilter.FILTER_REJECT;
+          
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    var node;
+    var seenTexts = new Set();
+    while (node = walker.nextNode()) {
+      var text = node.textContent.trim();
+      if (text && !seenTexts.has(text)) {
+        seenTexts.add(text);
+        texts.push(text);
+      }
+    }
+
+    return texts;
+  }
+
+  function getIframeTextsFromElement(iframe) {
+    try {
+      // Only try direct same-origin access for safety
+      var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      if (iframeDoc && iframeDoc.body) {
+        var bodyText = iframeDoc.body.innerText || iframeDoc.body.textContent || '';
+        if (bodyText.trim().length > 10) {
+          // Split into basic paragraphs
+          var paragraphs = bodyText.split(/\n\s*\n/).filter(function(p) { 
+            return p.trim().length > 3; 
+          });
+          if (paragraphs.length > 0) {
+            return paragraphs;
+          } else if (bodyText.trim().length > 0) {
+            return [bodyText.trim()];
+          }
+        }
+      }
+    } catch (error) {
+      // Cross-origin or access denied - skip silently
+      console.log("Read-Aloud: Skipping iframe (cross-origin or access denied)");
+    }
+    return [];
+  }
+
 
   function findTextBlocks(threshold) {
     var skipTags = "h1, h2, h3, h4, h5, h6, p, a[href], " + self.ignoreTags;
